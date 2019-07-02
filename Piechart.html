@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>Bar Chart</title>
+    <title>PIE Chart</title>
     <link rel="stylesheet" href="dc.css" type="text/css" />
 
     <style>
@@ -21,11 +21,20 @@
             -moz-box-sizing: border-box;
             box-sizing: border-box;
         }
+        
+        div#chart svg g g.axis g.tick text{
+            font-size: 16px;
+        }
+        
+        h2{
+            font-family: helvetica;
+            padding-left: 30px;
+        }
     </style>
 </head>
 
 <body>
-    <h2>Bar Charts Test</h2>
+    <h2>Pie Charts Test</h2>
     <div id="chart">
 
 
@@ -60,7 +69,16 @@ function print_filter(filter) {
   {date: "2011-11-14T17:29:52Z", quantity: 1, total: 200, tip: 100, type: "visa"}
 ]
 
+data.forEach(function (d){
+    var tempDate = new Date(d.date);//changing date from string to date
+    d.date = tempDate;
+})
+
+
+//CROSSFILTER
 var facts = crossfilter(data); //filter the data
+var all =facts.groupAll();
+var sumTotal = all.reduceSum(function (d){  return d.total;}).value();//get percentages for pie chart
 var typeDimension = facts.dimension(function(d){console.log(d.type); return d.type;}); 
 //access facts with CF dimension and then function which returns objects
 var typeGroup = typeDimension.group().reduceSum(function (d){ return d.total;});//reduceSum allows access to all data points
@@ -69,31 +87,52 @@ var typeGroup = typeDimension.group().reduceSum(function (d){ return d.total;});
 var totalDimension = facts.dimension(function(d){return d.total;});
 var totalGroup = totalDimension.group(function (d){return Math.floor(d/100)*100;});//function buckets the data (y axis)//Math.floor = round down, MAth.ceiling = round 
 
+var dateDimension = facts.dimension(function (d){ return d.date;});//for line chart 
+var dateGroup = dateDimension.group().reduceSum(function(d){   return d.total;});
+var dateGroupTip = dateDimension.group().reduceSum(function(d){ return d.tip;});
+
+
+var minDate = dateDimension.bottom(1)[0].date;//set minimum and max
+var maxDate = dateDimension.top(1)[0].date;
+
 
 
 //Chart settings
-var barChart = dc.barChart("#chart")
+
+var pieChart = dc.pieChart("#chart")
     .height(500)
-    .width(500)
-    //.margins({top:0,bottom:0,right:0,left:0})    
-    .dimension(totalDimension)
-    .group(totalGroup)
+    .width(1000)
+    .radius(300)//general size of pie chart
+    .innerRadius(80)//doughnut piechart
     
-    .x(d3.scaleLinear().domain([0,400]))//scaling for non strings
+    .title(function(d) { return d.key + ': $' +d.value;})//hover add $
+    .colors(d3.scaleOrdinal(d3.schemeAccent))
+    .label(function (d){    return d.key+':' + Math.round((d.value/sumTotal)*100,0)+'%';})//percentage hover label
+    //.margins({top:10,bottom:30,right:10,left:50})    
+    .dimension(typeDimension)
+    .group(typeGroup)
+    //.stack(dateGroupTip, "Tip")
+    //.renderHorizontalGridLines(true)//grid lines
+    //.renderArea(true)//fill area
+    .legend(dc.legend().x(5).y(5).itemHeight(12).gap(5))//DC specific class for legends
+    //.x(d3.scaleTime().domain([minDate,maxDate]))
+    //.yAxisLabel("Transaction spend");
+    //.x(d3.scaleLinear().domain([0,400]))//scaling for non strings bar chart
     //.x(d3.scaleOrdinal().domain(['cash','tab','visa'])) //scaling for strings with ordinal
     //.xUnits(dc.units.ordinal) // tell dc its an ordinal scale
     //.centerBar(true)//centers bars for linear
-    .xUnits(dc.units.fp.precision(100))//fattens up bars for linear scale
-    .barPadding(0.5)//inner bar gaps
-    .outerPadding(10)//outer padding on bars
-    barChart.yAxis().ticks(4);//number of integer marked along the left
-    barChart.xAxis().ticks(4);
+    //.xUnits(dc.units.fp.precision(100))//fattens up bars for linear scale
+    //.barPadding(0.5)//inner bar gaps
+    //.outerPadding(10)//outer padding on bars
+    //lineChart.yAxis().ticks(4);//number of integer marked along the left
+    //lineChart.xAxis().ticks(4);
     
     dc.renderAll();//render Chart
 
     //console.log(data);
    // console.log(facts);
-    print_filter("totalGroup");
+    console.log(dateDimension.top(1)[0].date); //.top(3)[first item in array] shows the top 3.
+    //print_filter("dateDimension.top(1)"); //.top(3)[first item in array] shows the top 3.
     
     
     
